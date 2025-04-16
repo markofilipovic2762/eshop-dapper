@@ -1,5 +1,7 @@
 using Dapper;
 using EshopDapper.Data;
+using EshopDapper.DTO;
+using EshopDapper.Entities;
 
 namespace EshopDapper.Endpoints;
 

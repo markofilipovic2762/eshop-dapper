@@ -12,26 +12,26 @@ public static class OrderEndpoints
         app.MapGet("/orders", async (ApplicationDbContext db) =>
         {
             const string sql = @"
-        SELECT
-            o.""Id"" AS OrderId,
-            o.""UserId"",
-            o.""EmployeeId"",
-            o.""TotalPrice"",
-            o.""OrderDate"",
-            o.""ShippedDate"",
-            o.""ShipCity"",
-            o.""ShipPostalCode"",
-            
-            od.""ProductId"",
-            od.""Price"" AS OrderPrice,
-            od.""Quantity"",
-            od.""Discount"",
-       
-            p.""Name"" AS ProductName
-        FROM eshop.orders o
-        JOIN eshop.orderdetails od ON o.""Id"" = od.""OrderId""
-        JOIN eshop.products p ON od.""ProductId"" = p.""Id""
-        ORDER BY o.""Id""";
+            SELECT
+                o.""Id"" AS OrderId,
+                o.""UserId"",
+                o.""EmployeeId"",
+                o.""TotalPrice"",
+                o.""OrderDate"",
+                o.""ShippedDate"",
+                o.""ShipCity"",
+                o.""ShipPostalCode"",
+                
+                od.""ProductId"",
+                od.""Price"" AS OrderPrice,
+                od.""Quantity"",
+                od.""Discount"",
+           
+                p.""Name"" AS ProductName
+            FROM eshop.orders o
+            JOIN eshop.orderdetails od ON o.""Id"" = od.""OrderId""
+            JOIN eshop.products p ON od.""ProductId"" = p.""Id""
+            ORDER BY o.""Id""";
 
             using var connection = db.CreateConnection();
 
@@ -60,26 +60,26 @@ public static class OrderEndpoints
         app.MapGet("/orders/{id:int}", async (int id, ApplicationDbContext db) =>
         {
             const string sql = @"
-        SELECT
-            o.""Id"" AS OrderId,
-            o.""UserId"",
-            o.""EmployeeId"",
-            o.""TotalPrice"",
-            o.""OrderDate"",
-            o.""ShippedDate"",
-            o.""ShipCity"",
-            o.""ShipPostalCode"",
-            
-            od.""ProductId"",
-            od.""Price"" AS OrderPrice,
-            od.""Quantity"",
-            od.""Discount"",
-            
-            p.""Name"" AS ProductName
-        FROM eshop.orders o
-        JOIN eshop.orderdetails od ON o.""Id"" = od.""OrderId""
-        JOIN eshop.products p ON od.""ProductId"" = p.""Id""
-        WHERE o.""Id"" = @Id;";
+            SELECT
+                o.""Id"" AS OrderId,
+                o.""UserId"",
+                o.""EmployeeId"",
+                o.""TotalPrice"",
+                o.""OrderDate"",
+                o.""ShippedDate"",
+                o.""ShipCity"",
+                o.""ShipPostalCode"",
+                
+                od.""ProductId"",
+                od.""Price"" AS OrderPrice,
+                od.""Quantity"",
+                od.""Discount"",
+                
+                p.""Name"" AS ProductName
+            FROM eshop.orders o
+            JOIN eshop.orderdetails od ON o.""Id"" = od.""OrderId""
+            JOIN eshop.products p ON od.""ProductId"" = p.""Id""
+            WHERE o.""Id"" = @Id;";
 
             using var connection = db.CreateConnection();
 
@@ -117,8 +117,8 @@ public static class OrderEndpoints
             {
                 const string insertOrderSql = @"
                     INSERT INTO eshop.orders 
-                    (""UserId"", ""EmployeeId"", ""TotalPrice"", ""OrderDate"", ""ShipCity"", ""ShipPostalCode"", ""Created"")
-                    VALUES (@UserId, @EmployeeId, @TotalPrice, @OrderDate, @ShipCity, @ShipPostalCode, now())
+                    (""UserId"", ""EmployeeId"", ""TotalPrice"", ""OrderDate"", ""ShipCity"", ""ShipPostalCode"")
+                    VALUES (@UserId, @EmployeeId, @TotalPrice, @OrderDate, @ShipCity, @ShipPostalCode)
                     RETURNING ""Id"";";
 
                 // Insert order and get the generated Id
@@ -126,8 +126,8 @@ public static class OrderEndpoints
 
                 const string insertDetailsSql = @"
                     INSERT INTO eshop.orderdetails
-                    (""OrderId"", ""ProductId"", ""Price"", ""Quantity"", ""Discount"", ""Created"")
-                    VALUES (@OrderId, @ProductId, @Price, @Quantity, @Discount, now());";
+                    (""OrderId"", ""ProductId"", ""Quantity"")
+                    VALUES (@OrderId, @ProductId, @Quantity);";
 
                 foreach (var item in orderDto.Items)
                 {
@@ -154,7 +154,7 @@ public static class OrderEndpoints
 
         app.MapGet("/orders/{id:int}", async (ApplicationDbContext db, int id) =>
         {
-            const string sql = "SELECT * FROM orders WHERE Id= @Id";
+            const string sql = @"SELECT * FROM orders WHERE ""Id""= @Id";
             using var connection = db.CreateConnection();
 
             var order = await connection.QuerySingleOrDefaultAsync<Order>(sql, new { Id = id });
@@ -162,13 +162,13 @@ public static class OrderEndpoints
             return order is null ? Results.NotFound() : Results.Ok(order);
         });
 
-        app.MapPut("/orders/{id:int}", async (int id, CreateOrderRequest request, ApplicationDbContext db) =>
+        app.MapPut("/orders/{id:int}", async (int id, OrderCreateDto request, ApplicationDbContext db) =>
         {   
             using var connection = db.CreateConnection();
             using var tx = connection.BeginTransaction();
 
-    try
-    {
+            try
+            {
         // 1. Vrati stare stavke i vrati količine u products
         var oldItems = await connection.QueryAsync<OrderItemDto>(
             @"SELECT ""ProductId"", ""Quantity"", ""Price"", ""Discount""
@@ -191,7 +191,7 @@ public static class OrderEndpoints
             new { OrderId = id }, tx);
 
         // 3. Dodaj nove stavke i skini količinu
-        foreach (var item in request.OrderItems)
+        foreach (var item in request.Items)
         {
             await connection.ExecuteAsync(
                 @"INSERT INTO eshop.orderdetails
@@ -242,7 +242,7 @@ public static class OrderEndpoints
         tx.Rollback();
         return Results.BadRequest(new { error = ex.Message });
     }
-});
+        });
 
 
         app.MapDelete("/orders/{id:int}", async (ApplicationDbContext db, int id) =>
