@@ -8,7 +8,6 @@ public class ProductPost
     public int Amount { get; set; }
     public int Sold { get; set; } = 0;
     public string? ImageUrl { get; set; } = string.Empty;
-    public DateTime Created { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
     public DateTime? LastModified { get; set; }
     public string? LastModifiedBy { get; set; } = string.Empty;

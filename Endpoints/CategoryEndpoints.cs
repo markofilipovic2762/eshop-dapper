@@ -2,7 +2,6 @@ using Dapper;
 using EshopDapper.Data;
 using EshopDapper.DTO;
 using EshopDapper.Entities;
-using Mapster;
 
 namespace EshopDapper.Endpoints;
 
@@ -10,17 +9,18 @@ public static class CategoryEndpoints
 {
     public static void MapCategoryEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/categories",async (ApplicationDbContext db) =>
+        app.MapGet("/",async (ApplicationDbContext db) =>
         {
-            const string sql = "SELECT * FROM categories";
+            const string sql = @"SELECT *
+                FROM eshop.categories";
             using var connection = db.CreateConnection();
             
-            var categories = await connection.QueryAsync<Category>(sql);
+            var categories = await connection.QueryAsync<List<Category>>(sql);
             
             return Results.Ok(categories);
         });
         
-        app.MapPost("/categories", async (ApplicationDbContext db, CategoryPost categorydto) =>
+        app.MapPost("/", async (ApplicationDbContext db, CategoryPost categorydto) =>
         {
             const string sql = "INSERT INTO categories (\"Name\", \"CreatedBy\") VALUES (@Name, @CreatedBy)";
 
@@ -33,9 +33,9 @@ public static class CategoryEndpoints
             return Results.Ok(result);
         });
         
-        app.MapGet("/categories/{id:int}", async (ApplicationDbContext db, int id) =>
+        app.MapGet("/{id:int}", async (ApplicationDbContext db, int id) =>
         {
-            const string sql = "SELECT * FROM categories WHERE Id= @Id";
+            const string sql = @"SELECT * FROM categories WHERE ""Id""= @Id";
             using var connection = db.CreateConnection();
             
             var category = await connection.QuerySingleOrDefaultAsync<Category>(sql, new { Id = id });
@@ -43,17 +43,17 @@ public static class CategoryEndpoints
             return category is null ? Results.NotFound() : Results.Ok(category);
         });
         
-        app.MapPut("/categories/{id:int}", async (ApplicationDbContext db, int id, CategoryPost categorydto) =>
+        app.MapPut("/{id:int}", async (ApplicationDbContext db, int id, CategoryPost categorydto) =>
         {
             const string sql = "UPDATE categories SET \"Name\" = @Name, \"CreatedBy\" = @CreatedBy WHERE \"Id\" = @Id";
             using var connection = db.CreateConnection();
             
-            var result = await connection.ExecuteAsync(sql, new { Name = categorydto.Name, CreatedBy = categorydto.CreatedBy, Id = id });
+            var result = await connection.ExecuteAsync(sql, new { categorydto.Name, categorydto.CreatedBy, Id = id });
             
             return result == 0 ? Results.NotFound() : Results.Ok(result);
         });
         
-        app.MapDelete("/categories/{id:int}", async (ApplicationDbContext db, int id) =>
+        app.MapDelete("/{id:int}", async (ApplicationDbContext db, int id) =>
         {
             const string sql = "DELETE FROM categories WHERE \"Id\" = @Id";
             using var connection = db.CreateConnection();
