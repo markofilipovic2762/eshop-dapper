@@ -1,0 +1,6 @@
+﻿services:
+  eshopdapper:
+    image: eshopdapper
+    build:
+      context: .
+      dockerfile: Dockerfile
