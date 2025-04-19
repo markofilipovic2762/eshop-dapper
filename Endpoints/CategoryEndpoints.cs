@@ -23,11 +23,7 @@ public static class CategoryEndpoints
         app.MapPost("/", async (ApplicationDbContext db, CategoryPost categorydto) =>
         {
             const string sql = "INSERT INTO categories (\"Name\", \"CreatedBy\") VALUES (@Name, @CreatedBy)";
-
             using var connection = db.CreateConnection();
-            
-            // var categoryPost = categorydto.Adapt<Category>(); 
-            
             var result = await connection.ExecuteAsync(sql, categorydto);
             
             return Results.Ok(result);
