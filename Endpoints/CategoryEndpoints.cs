@@ -9,25 +9,49 @@ public static class CategoryEndpoints
 {
     public static void MapCategoryEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/",async (ApplicationDbContext db) =>
+        app.MapGet("/", async (ApplicationDbContext db) =>
         {
-            const string sql = @"SELECT *
-                FROM eshop.categories";
+            const string sql = @"
+                SELECT 
+                c.""Id"", c.""Name"", c.""Created"", c.""CreatedBy"", c.""LastModified"", c.""LastModifiedBy"",
+                s.""Id"", s.""Name"", s.""CategoryId""
+                FROM categories c
+                LEFT JOIN subcategories s ON c.""Id"" = s.""CategoryId""";
+
             using var connection = db.CreateConnection();
-            
-            var categories = await connection.QueryAsync<List<Category>>(sql);
-            
-            return Results.Ok(categories);
+
+            var categoryDict = new Dictionary<int, CategoryDto>();
+
+            var result = await connection.QueryAsync<CategoryDto, Subcategory, CategoryDto>(
+                sql,
+                (category, subcategory) =>
+                {
+                    if (!categoryDict.TryGetValue(category.Id, out var existingCategory))
+                    {
+                        existingCategory = category;
+                        existingCategory.Subcategories = new List<Subcategory>();
+                        categoryDict.Add(existingCategory.Id, existingCategory);
+                    }
+
+                    if (subcategory != null && subcategory.Id != 0)
+                    {
+                        existingCategory.Subcategories.Add(subcategory);
+                    }
+
+                    return existingCategory;
+                },
+                splitOn: "Id" // bitno! moraš reći Dapperu gde počinje drugi objekat (Subcategory.Id)
+            );
+
+            return Results.Ok(categoryDict.Values);
         });
+
         
         app.MapPost("/", async (ApplicationDbContext db, CategoryPost categorydto) =>
         {
             const string sql = "INSERT INTO categories (\"Name\", \"CreatedBy\") VALUES (@Name, @CreatedBy)";
 
             using var connection = db.CreateConnection();
-            
-            // var categoryPost = categorydto.Adapt<Category>(); 
-            
             var result = await connection.ExecuteAsync(sql, categorydto);
             
             return Results.Ok(result);
@@ -57,9 +81,7 @@ public static class CategoryEndpoints
         {
             const string sql = "DELETE FROM categories WHERE \"Id\" = @Id";
             using var connection = db.CreateConnection();
-            
             var result = await connection.ExecuteAsync(sql, new { Id = id });
-            
             return result == 0 ? Results.NotFound() : Results.Ok(result);
         });
     }
