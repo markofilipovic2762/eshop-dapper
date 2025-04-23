@@ -17,7 +17,7 @@ public class ProductDto
     public DateTime? LastModified { get; set; }
     public string? LastModifiedBy { get; set; } = string.Empty;
 
-    public Category Category { get; set; }
-    public Entities.Subcategory Subcategory { get; set; }
-    public Supplier Supplier { get; set; }
+    public required Category Category { get; set; }
+    public required Entities.Subcategory Subcategory { get; set; }
+    public Entities.Supplier? Supplier { get; set; }
 }

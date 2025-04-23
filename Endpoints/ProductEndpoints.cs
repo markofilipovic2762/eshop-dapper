@@ -30,7 +30,7 @@ public static class ProductEndpoints
                 FROM products p
                 JOIN categories c ON p.""CategoryId"" = c.""Id""
                 JOIN subcategories sc ON p.""SubcategoryId"" = sc.""Id""
-                JOIN suppliers s ON p.""SupplierId"" = s.""Id""";
+                LEFT JOIN suppliers s ON p.""SupplierId"" = s.""Id""";
 
             using var connection = db.CreateConnection();
 
@@ -40,7 +40,7 @@ public static class ProductEndpoints
                 {
                     product.Category = category;
                     product.Subcategory = subcategory;
-                    product.Supplier = supplier;
+                    product.Supplier = supplier ?? null;
                     return product;
                 },
                 splitOn: "Id,Id,Id" // redosled: Category.Id, Subcategory.Id, Supplier.Id
@@ -75,7 +75,7 @@ public static class ProductEndpoints
                 FROM products p
                 JOIN categories c ON p.""CategoryId"" = c.""Id""
                 JOIN subcategories sc ON p.""SubcategoryId"" = sc.""Id""
-                JOIN suppliers s ON p.""SupplierId"" = s.""Id""
+                LEFT JOIN suppliers s ON p.""SupplierId"" = s.""Id""
                 WHERE p.""Id"" = @Id";
 
             using var connection = db.CreateConnection();
@@ -86,7 +86,7 @@ public static class ProductEndpoints
                 {
                     p.Category = c;
                     p.Subcategory = sc;
-                    p.Supplier = s;
+                    p.Supplier = s ?? null;
                     return p;
                 },
                 new { Id = id },

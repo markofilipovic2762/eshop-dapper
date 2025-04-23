@@ -13,5 +13,5 @@ public class ProductPost
     public string? LastModifiedBy { get; set; } = string.Empty;
     public int CategoryId { get; set; }
     public int SubcategoryId { get; set; }
-    public int SupplierId { get; set; }
+    public int? SupplierId { get; set; }
 }
