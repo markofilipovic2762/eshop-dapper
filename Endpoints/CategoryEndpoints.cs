@@ -40,7 +40,7 @@ public static class CategoryEndpoints
 
                     return existingCategory;
                 },
-                splitOn: "Id" // bitno! moraš reći Dapperu gde počinje drugi objekat (Subcategory.Id)
+                splitOn: "Id"
             );
 
             return Results.Ok(categoryDict.Values);
@@ -54,7 +54,7 @@ public static class CategoryEndpoints
             var result = await connection.ExecuteAsync(sql, categorydto);
             
             return Results.Ok(result);
-        });
+        }).RequireAuthorization(policy => policy.RequireRole("Admin"));
         
         app.MapGet("/{id:int}", async (ApplicationDbContext db, int id) =>
         {

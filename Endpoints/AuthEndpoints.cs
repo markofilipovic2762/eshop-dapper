@@ -44,10 +44,10 @@ public static class AuthEndpoints
 
         app.MapPost("/login", async (ApplicationDbContext db, AuthService authService, UserLoginDto request) =>
         {
-            const string sql = "SELECT * FROM users WHERE \"Username\" = @Username";
+            const string sql = "SELECT * FROM users WHERE \"Email\" = @Email OR \"Username\" = @Username";
             using var connection = db.CreateConnection();
             
-            var user = await connection.QuerySingleOrDefaultAsync<User>(sql, new { request.Username });
+            var user = await connection.QuerySingleOrDefaultAsync<User>(sql, new { request.Username, request.Email });
             
             if (user == null)
                 return Results.NotFound("User not found");
@@ -57,7 +57,14 @@ public static class AuthEndpoints
 
             var token = authService.CreateToken(user);
 
-            return Results.Ok(token);
+            return Results.Ok(new
+            {
+                token,
+                user.Id,
+                user.Name,
+                user.Username,
+                user.Email,
+            });
         });
     }
 }

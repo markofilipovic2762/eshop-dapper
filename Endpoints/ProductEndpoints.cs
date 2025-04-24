@@ -62,7 +62,7 @@ public static class ProductEndpoints
             var result = await connection.ExecuteAsync(sql, productdto);
 
             return Results.Ok(result);
-        });
+        }).RequireAuthorization(policy => policy.RequireRole("Admin"));
 
         app.MapGet("/{id:int}", async (ApplicationDbContext db, int id) =>
         {

@@ -39,9 +39,12 @@ public class AuthService
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.Role, user.Role)
         };
-
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
-            _configuration.GetSection("AppSettings:Token").Value!));
+        var randomKey = new byte[64]; // 512 bits
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(randomKey);
+        }
+        var key = new SymmetricSecurityKey(randomKey);
 
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
 
