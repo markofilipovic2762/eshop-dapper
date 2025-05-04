@@ -10,18 +10,9 @@ public static class ProductEndpoints
 {
     public static void MapProductEndpoints(this IEndpointRouteBuilder app)
     {
-        /*app.MapGet("/", async (ApplicationDbContext db) =>
+        app.MapGet("/", async (ApplicationDbContext db, int? categoryId, int? subcategoryId, int? supplierId, string? productName) =>
         {
-            const string sql = "SELECT * FROM products";
-            using var connection = db.CreateConnection();
-
-            var products = await connection.QueryAsync<Product>(sql);
-
-            return Results.Ok(products);
-        });*/
-        app.MapGet("/", async (ApplicationDbContext db) =>
-        {
-            const string sql = @"
+            var sql = @"
                 SELECT 
                     p.*, 
                     c.""Id"", c.""Name"",
@@ -30,22 +21,27 @@ public static class ProductEndpoints
                 FROM products p
                 JOIN categories c ON p.""CategoryId"" = c.""Id""
                 JOIN subcategories sc ON p.""SubcategoryId"" = sc.""Id""
-                LEFT JOIN suppliers s ON p.""SupplierId"" = s.""Id""";
-
+                LEFT JOIN suppliers s ON p.""SupplierId"" = s.""Id""
+                WHERE (@CategoryId IS NULL OR p.""CategoryId"" = @CategoryId)
+                AND (@SubcategoryId IS NULL OR p.""SubcategoryId"" = @SubcategoryId)
+                AND (@SupplierId IS NULL OR p.""SupplierId"" = @SupplierId)
+                AND (@ProductName IS NULL OR p.""Name"" ILIKE '%' || @ProductName || '%')";
+        
             using var connection = db.CreateConnection();
-
+        
             var products = await connection.QueryAsync<ProductDto, Category, Subcategory, Supplier, ProductDto>(
                 sql,
                 (product, category, subcategory, supplier) =>
                 {
                     product.Category = category;
-                    product.Subcategory = subcategory;
+                    product.Subcategory = subcategory; 
                     product.Supplier = supplier ?? null;
                     return product;
                 },
-                splitOn: "Id,Id,Id" // redosled: Category.Id, Subcategory.Id, Supplier.Id
+                new { CategoryId = categoryId, SubcategoryId = subcategoryId, SupplierId = supplierId, ProductName = productName },
+                splitOn: "Id,Id,Id"
             );
-
+        
             return Results.Ok(products);
         });
 
@@ -62,7 +58,7 @@ public static class ProductEndpoints
             var result = await connection.ExecuteAsync(sql, productdto);
 
             return Results.Ok(result);
-        }).RequireAuthorization(policy => policy.RequireRole("Admin"));
+        });
 
         app.MapGet("/{id:int}", async (ApplicationDbContext db, int id) =>
         {
@@ -137,5 +133,49 @@ public static class ProductEndpoints
 
             return result == 0 ? Results.NotFound() : Results.Ok(result);
         });
+
+        app.MapPost("/upload", async (IFormFile file) =>
+        {
+            if (file == null || file.Length == 0)
+            {
+                return Results.BadRequest("Invalid file.");
+            }
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
+            var fileExtension = Path.GetExtension(file.FileName).ToLower();
+            //Log.Information("FileExtension is {FileExtension}, filename is {FileName}", fileExtension, file.FileName);
+
+            if (!allowedExtensions.Contains(fileExtension))
+            {
+                return Results.BadRequest("File type not supported.");
+            }
+
+            var allowedMimeTypes = new[] { "image/jpeg", "image/png" };
+            //Log.Information("Tip fajla je {TipFajla}", file.ContentType);
+            if (!allowedMimeTypes.Contains(file.ContentType))
+            {
+                return Results.BadRequest("Invalid file type.");
+            }
+
+            // Definišite putanju za direktorijum i fajl
+            var uploadDirectory = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
+            var fileName = Guid.NewGuid() + fileExtension;
+            var filePath = Path.Combine(uploadDirectory, fileName);
+
+            // Proverite i kreirajte direktorijum ako ne postoji
+            if (!Directory.Exists(uploadDirectory))
+            {
+                Directory.CreateDirectory(uploadDirectory);
+            }
+
+            // Snimanje fajla
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+            
+            return Results.Ok(fileName);
+        }).DisableAntiforgery();
+
     }
 }

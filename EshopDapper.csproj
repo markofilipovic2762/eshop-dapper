@@ -20,6 +20,7 @@
 
     <ItemGroup>
       <Folder Include="DTO\Employee\" />
+      <Folder Include="Uploads\" />
     </ItemGroup>
 
 </Project>

@@ -3,6 +3,7 @@ using EshopDapper.Data;
 using EshopDapper.Endpoints;
 using EshopDapper.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -48,7 +49,12 @@ if (app.Environment.IsDevelopment())
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
-
+var uploadDirectory = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadDirectory),
+    RequestPath = "/uploads"
+});
 
 var categoryGroup = app.MapGroup("/categories").WithTags("Categories");
 var productGroup = app.MapGroup("/products").WithTags("Products");
