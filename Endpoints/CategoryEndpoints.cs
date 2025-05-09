@@ -13,14 +13,20 @@ public static class CategoryEndpoints
         {
             const string sql = @"
                 SELECT 
-                c.""Id"", c.""Name"", c.""Created"", c.""CreatedBy"", c.""LastModified"", c.""LastModifiedBy"",
+                c.""Id"", c.""Name"", c.""Created"", c.""CreatedBy"", c.""LastModified"", c.""LastModifiedBy"",c.""ImageUrl"",
                 s.""Id"", s.""Name"", s.""CategoryId""
                 FROM categories c
                 LEFT JOIN subcategories s ON c.""Id"" = s.""CategoryId""";
 
             using var connection = db.CreateConnection();
+            var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger("CategoryEndpoints");
 
             var categoryDict = new Dictionary<int, CategoryDto>();
+            logger.LogInformation("Initialized category dictionary.");foreach (var kvp in categoryDict)
+            {
+                logger.LogInformation("Key: {Key}, Value: {@Value}", kvp.Key, kvp.Value);
+            }
+            
 
             var result = await connection.QueryAsync<CategoryDto, Subcategory, CategoryDto>(
                 sql,
@@ -46,15 +52,16 @@ public static class CategoryEndpoints
             return Results.Ok(categoryDict.Values);
         });
 
-        
+
         app.MapPost("/", async (ApplicationDbContext db, CategoryPost categorydto) =>
         {
-            const string sql = "INSERT INTO categories (\"Name\", \"CreatedBy\") VALUES (@Name, @CreatedBy)";
+            const string sql = "INSERT INTO categories (\"Name\", \"CreatedBy\",\"ImageUrl\") VALUES (@Name, @CreatedBy,@ImageUrl)";
             using var connection = db.CreateConnection();
             var result = await connection.ExecuteAsync(sql, categorydto);
-            
+
             return Results.Ok(result);
-        }).RequireAuthorization(policy => policy.RequireRole("Admin"));
+        });
+            /*.RequireAuthorization(policy => policy.RequireRole("Admin"));*/
         
         app.MapGet("/{id:int}", async (ApplicationDbContext db, int id) =>
         {
@@ -68,10 +75,10 @@ public static class CategoryEndpoints
         
         app.MapPut("/{id:int}", async (ApplicationDbContext db, int id, CategoryPost categorydto) =>
         {
-            const string sql = "UPDATE categories SET \"Name\" = @Name, \"CreatedBy\" = @CreatedBy WHERE \"Id\" = @Id";
+            const string sql = "UPDATE categories SET \"Name\" = @Name, \"CreatedBy\" = @CreatedBy, \"ImageUrl\"= @ImageUrl WHERE \"Id\"= @Id";
             using var connection = db.CreateConnection();
             
-            var result = await connection.ExecuteAsync(sql, new { categorydto.Name, categorydto.CreatedBy, Id = id });
+            var result = await connection.ExecuteAsync(sql, new { categorydto.Name, categorydto.CreatedBy,categorydto.ImageUrl, Id = id });
             
             return result == 0 ? Results.NotFound() : Results.Ok(result);
         });

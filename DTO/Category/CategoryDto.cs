@@ -8,5 +8,6 @@ public class CategoryDto
     public string CreatedBy { get; set; }
     public DateTime LastModified { get; set; }
     public string LastModifiedBy { get; set; }
+    public string ImageUrl { get; set; }
     public List<Entities.Subcategory> Subcategories { get; set; } = new();
 }

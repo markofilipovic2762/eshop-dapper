@@ -20,4 +20,5 @@ public class ProductDto
     public required Category Category { get; set; }
     public required Entities.Subcategory Subcategory { get; set; }
     public Entities.Supplier? Supplier { get; set; }
+    public string[]? ImageUrls { get; set; } = Array.Empty<string>();
 }

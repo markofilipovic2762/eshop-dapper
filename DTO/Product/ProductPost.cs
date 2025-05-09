@@ -14,4 +14,5 @@ public class ProductPost
     public int CategoryId { get; set; }
     public int SubcategoryId { get; set; }
     public int? SupplierId { get; set; }
+    public string[] ImageUrls { get; set; } = Array.Empty<string>();
 }

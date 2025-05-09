@@ -2,8 +2,6 @@ using Dapper;
 using EshopDapper.Data;
 using EshopDapper.DTO;
 using EshopDapper.Entities;
-using Product = EshopDapper.Entities.Product;
-
 namespace EshopDapper.Endpoints;
 
 public static class ProductEndpoints
@@ -11,54 +9,96 @@ public static class ProductEndpoints
     public static void MapProductEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/", async (ApplicationDbContext db, int? categoryId, int? subcategoryId, int? supplierId, string? productName) =>
+{
+    var sql = @"
+        SELECT 
+            p.""Id"", p.""Name"", p.""Description"", p.""Price"", p.""Amount"", p.""Sold"",
+            p.""IsDeleted"", p.""CategoryId"", p.""SubcategoryId"", p.""SupplierId"",
+            p.""Created"", p.""CreatedBy"", p.""LastModified"", p.""LastModifiedBy"", p.""Discount"",
+            c.""Id"", c.""Name"",
+            sc.""Id"", sc.""Name"",
+            s.""Id"", s.""Name""
+        FROM products p
+        JOIN categories c ON p.""CategoryId"" = c.""Id""
+        JOIN subcategories sc ON p.""SubcategoryId"" = sc.""Id""
+        LEFT JOIN suppliers s ON p.""SupplierId"" = s.""Id""
+        WHERE (@CategoryId IS NULL OR p.""CategoryId"" = @CategoryId)
+        AND (@SubcategoryId IS NULL OR p.""SubcategoryId"" = @SubcategoryId)
+        AND (@SupplierId IS NULL OR p.""SupplierId"" = @SupplierId)
+        AND (@ProductName IS NULL OR p.""Name"" ILIKE '%' || @ProductName || '%')";
+
+    using var connection = db.CreateConnection();
+
+    var productDict = new Dictionary<int, ProductDto>();
+
+    var products = (await connection.QueryAsync<ProductDto, Category, Subcategory, Supplier, ProductDto>(
+        sql,
+        (product, category, subcategory, supplier) =>
         {
-            var sql = @"
-                SELECT 
-                    p.*, 
-                    c.""Id"", c.""Name"",
-                    sc.""Id"", sc.""Name"",
-                    s.""Id"", s.""Name""
-                FROM products p
-                JOIN categories c ON p.""CategoryId"" = c.""Id""
-                JOIN subcategories sc ON p.""SubcategoryId"" = sc.""Id""
-                LEFT JOIN suppliers s ON p.""SupplierId"" = s.""Id""
-                WHERE (@CategoryId IS NULL OR p.""CategoryId"" = @CategoryId)
-                AND (@SubcategoryId IS NULL OR p.""SubcategoryId"" = @SubcategoryId)
-                AND (@SupplierId IS NULL OR p.""SupplierId"" = @SupplierId)
-                AND (@ProductName IS NULL OR p.""Name"" ILIKE '%' || @ProductName || '%')";
-        
-            using var connection = db.CreateConnection();
-        
-            var products = await connection.QueryAsync<ProductDto, Category, Subcategory, Supplier, ProductDto>(
-                sql,
-                (product, category, subcategory, supplier) =>
-                {
-                    product.Category = category;
-                    product.Subcategory = subcategory; 
-                    product.Supplier = supplier ?? null;
-                    return product;
-                },
-                new { CategoryId = categoryId, SubcategoryId = subcategoryId, SupplierId = supplierId, ProductName = productName },
-                splitOn: "Id,Id,Id"
-            );
-        
-            return Results.Ok(products);
-        });
+            product.Category = category;
+            product.Subcategory = subcategory;
+            product.Supplier = supplier;
+            productDict[product.Id] = product;
+            return product;
+        },
+        new { CategoryId = categoryId, SubcategoryId = subcategoryId, SupplierId = supplierId, ProductName = productName },
+        splitOn: "Id,Id,Id"
+    )).Distinct().ToList();
+
+    // Drugi upit: uzimamo slike za sve proizvode
+    var imageSql = @"SELECT ""ProductId"", ""ImageUrl"" FROM product_images WHERE ""ProductId"" = ANY(@Ids)";
+    var productIds = productDict.Keys.ToArray();
+
+    var images = await connection.QueryAsync<(int ProductId, string ImageUrl)>(imageSql, new { Ids = productIds });
+
+    foreach (var img in images)
+    {
+        if (productDict.TryGetValue(img.ProductId, out var prod))
+        {
+            prod.ImageUrls ??= Array.Empty<string>();
+            prod.ImageUrls = prod.ImageUrls.Append(img.ImageUrl).ToArray();
+        }
+    }
+
+    return Results.Ok(products);
+});
+
 
 
         app.MapPost("/", async (ApplicationDbContext db, ProductPost productdto) =>
         {
-            const string sql = @"INSERT INTO products 
-                (""Name"",""Description"", ""Price"",""Amount"",""ImageUrl"", ""CreatedBy"",""LastModified"",""LastModifiedBy"", ""CategoryId"", ""SubcategoryId"",""SupplierId"")
+            const string insertProductSql = @"
+                INSERT INTO products 
+                (""Name"", ""Description"", ""Price"", ""Amount"", ""CreatedBy"", ""LastModified"", ""LastModifiedBy"", ""CategoryId"", ""SubcategoryId"", ""SupplierId"")
                 VALUES 
-                (@Name,@Description ,@Price,@Amount,@ImageUrl,@CreatedBy,@LastModified,@LastModifiedBy,@CategoryId,@SubcategoryId,@SupplierId)";
+                (@Name, @Description, @Price, @Amount, @CreatedBy, @LastModified, @LastModifiedBy, @CategoryId, @SubcategoryId, @SupplierId)
+                RETURNING ""Id"";
+                ";
 
             using var connection = db.CreateConnection();
+            
+            var newProductId = await connection.ExecuteScalarAsync<int>(insertProductSql, productdto);
 
-            var result = await connection.ExecuteAsync(sql, productdto);
+            // 2. Insert image URLs if provided
+            if (productdto.ImageUrls is not null && productdto.ImageUrls.Any())
+            {
+                const string insertImageSql = @"
+                INSERT INTO product_images (""ProductId"", ""ImageUrl"") 
+                VALUES (@ProductId, @ImageUrl);
+                ";
 
-            return Results.Ok(result);
+                var imageInsertData = productdto.ImageUrls.Select(url => new 
+                { 
+                    ProductId = newProductId, 
+                    ImageUrl = url 
+                });
+
+                await connection.ExecuteAsync(insertImageSql, imageInsertData);
+            }
+
+            return Results.Ok(new { Id = newProductId });
         });
+
 
         app.MapGet("/{id:int}", async (ApplicationDbContext db, int id) =>
         {
@@ -100,7 +140,7 @@ public static class ProductEndpoints
         {
             const string sql = @"UPDATE products 
                 SET ""Name"" = @Name,""Description"" = @Description,""Price"" = @Price,""Amount""= @Amount,
-                    ""ImageUrl"" = @ImageUrl,""LastModified"" = now(),
+                    ""LastModified"" = now(),
                     ""LastModifiedBy"" = @LastModifiedBy,""CategoryId"" = @CategoryId,
                     ""SubcategoryId"" = @SubcategoryId,
                     ""SupplierId"" = @SupplierId
@@ -176,6 +216,24 @@ public static class ProductEndpoints
             
             return Results.Ok(fileName);
         }).DisableAntiforgery();
+        
+        /*app.MapPost("/image_link/{id:int}", async (ApplicationDbContext db,ImageLinkPost imageLink, int id) =>
+        {
+            const string sql = @"INSERT INTO product_images 
+                (""ImageUrl"", ""ProductId"")
+                VALUES (@ImageUrl, @ProductId)";
+            
+            using var connection = db.CreateConnection();
+
+            var result = await connection.ExecuteAsync(sql, new
+            {
+                imageLink.ImageUrl,
+                imageLink.ProductId
+            });
+
+            return result == 0 ? Results.NotFound() : Results.Ok(result);
+        });*/
 
     }
 }
+
