@@ -22,12 +22,7 @@ public static class CategoryEndpoints
             var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger("CategoryEndpoints");
 
             var categoryDict = new Dictionary<int, CategoryDto>();
-            logger.LogInformation("Initialized category dictionary.");foreach (var kvp in categoryDict)
-            {
-                logger.LogInformation("Key: {Key}, Value: {@Value}", kvp.Key, kvp.Value);
-            }
             
-
             var result = await connection.QueryAsync<CategoryDto, Subcategory, CategoryDto>(
                 sql,
                 (category, subcategory) =>

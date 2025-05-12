@@ -21,7 +21,7 @@ public static class SubcategoryEndpoints
 
         app.MapPost("/", async (ApplicationDbContext db, SubcategoryPost subcategorydto) =>
         {
-            const string sql = "INSERT INTO subcategories (\"Name\", \"CategoryId\") VALUES (@Name, @CategoryId)";
+            const string sql = @"INSERT INTO subcategories (""Name"", ""CategoryId"",""ImageUrl"") VALUES (@Name, @CategoryId,@ImageUrl)";
 
             using var connection = db.CreateConnection();
 
@@ -32,7 +32,7 @@ public static class SubcategoryEndpoints
 
         app.MapGet("/{id:int}", async (ApplicationDbContext db, int id) =>
         {
-            const string sql = "SELECT * FROM subcategories WHERE Id= @Id";
+            const string sql = @"SELECT * FROM subcategories WHERE ""Id""= @Id";
             using var connection = db.CreateConnection();
 
             var subcategory = await connection.QuerySingleOrDefaultAsync<Subcategory>(sql, new { Id = id });
