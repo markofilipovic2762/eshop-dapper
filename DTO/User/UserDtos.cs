@@ -2,7 +2,7 @@ namespace EshopDapper.DTO.User;
 
 public record UserRegisterDto(
     string Name,
-    string Username,
+    string? Username,
     string Email,
     string Password
     );

@@ -42,11 +42,11 @@ public static class SubcategoryEndpoints
 
         app.MapPut("/{id:int}", async (ApplicationDbContext db, int id, SubcategoryPost subcategorydto) =>
         {
-            const string sql = @"UPDATE subcategories SET ""Name"" = @Name, ""CategoryId"" = @CategoryId 
+            const string sql = @"UPDATE subcategories SET ""Name"" = @Name, ""CategoryId"" = @CategoryId , ""ImageUrl""= @ImageUrl
                 WHERE ""Id"" = @Id";
             using var connection = db.CreateConnection();
 
-            var result = await connection.ExecuteAsync(sql, new { subcategorydto.Name, subcategorydto.CategoryId, Id = id });
+            var result = await connection.ExecuteAsync(sql, new { subcategorydto.Name, subcategorydto.CategoryId,subcategorydto.ImageUrl, Id = id });
 
             return result == 0 ? Results.NotFound() : Results.Ok(result);
         });
